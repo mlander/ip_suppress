@@ -29,6 +29,10 @@ function ip_suppress_permission() {
       'title' => t('Administer IP Suppress'),
       'description' => t('Perform administration tasks for IP Suppress.'),
     ),
+    'bypass ip suppress restrictions' =>  array(
+      'title' => t('Bypass IP Suppress Restrictions'),
+      'description' => t('Bypass check for IP Suppress restrictions.'),
+    ),
     //@todo: add bypass access
   );
 
@@ -72,7 +76,7 @@ function ip_suppress_menu() {
   $items['admin/config/people/ip-suppress/delete/%ip_suppress_ip'] = array(
     'title' => 'Delete IP address',
     'page callback' => 'drupal_get_form',
-    'page arguments' => array('ip_suppress_blocking_delete', 5),
+    'page arguments' => array('ip_suppress_suppress_delete', 5),
     'access arguments' => array('administer ip suppress'),
     'file' => 'ip_suppress.admin.inc',
   );
@@ -82,8 +86,8 @@ function ip_suppress_menu() {
 }
 function ip_suppress_check() {
   global $user;
-  $results = db_query("SELECT * FROM {ip_suppress} WHERE ip = :ip", array(':ip' => ip_address()))->fetchAssoc();
-  if(!$results || $user->uid == 1) {
+  // Check if user is allowed to skip check or not in suppressed ip table.
+  if($user->uid == 1 || user_access('bypass ip suppress restrictions') || user_access('administer ip suppress') || !ip_suppress_ip_load_by_ip(ip_address())) {
     return;
   }
   // Convert paths to lowercase. This allows comparison of the same path
@@ -91,6 +95,12 @@ function ip_suppress_check() {
   $visibility = variable_get('ip_suppress_visibility', IP_SUPPRESS_WHITELIST);
   $pages = strtolower (variable_get('ip_suppress_pages'));
   $redirect = strtolower (variable_get('ip_suppress_redirect'));
+  $request_path = strtolower (request_path());
+  if($redirect == '<front>') {
+    $redirect_pieces['path'] = '';
+  } else {
+    $redirect_pieces = drupal_parse_url($redirect);
+  }
   $path =  strtolower ($_GET['q']);
 
   if(function_exists('drupal_get_path_alias')) {
@@ -120,29 +130,25 @@ function ip_suppress_check() {
   }
 
   $page_match = !(!$visibility xor $page_match);
-  if($page_match && $redirect != $path_alias && $redirect != $path && $redirect != strtolower(request_path())) {
-    drupal_goto($redirect);
+  if($page_match && $redirect_pieces['path'] != $path_alias && $redirect_pieces['path'] != $path && $redirect_pieces['path'] != $request_path) {
+    // Prevent this page from caching the redirect.
+    drupal_page_is_cacheable(FALSE);
+
+    $options = $redirect_pieces;
+    unset($options['path']);
+    drupal_goto($redirect_pieces['path'], array_filter($options));
   }
 }
 /**
- * // Probably need to change this to bootstrap because of varnish
  * Implements hook_boot().
  */
 function ip_suppress_boot() {
-  global $user;
-  if ($user->uid != 0) { // ignore for Authentificated Users
-    return;
-  }
-  drupal_bootstrap(DRUPAL_BOOTSTRAP_FULL);
-  ip_suppress_check();
-}
-
-function ip_suppress_page_build() {
-  if(!user_access('bypass ip suppress check')) {
+  if(ip_suppress_ip_load_by_ip(ip_address())) {
+    drupal_page_is_cacheable(FALSE);
+    drupal_bootstrap(DRUPAL_BOOTSTRAP_FULL);
     ip_suppress_check();
   }
 }
-
 
 /**
  *
@@ -170,7 +176,7 @@ function ip_suppress_ip_load($iid) {
 }
 
 function ip_suppress_ip_load_by_ip($ip) {
-  return db_query("SELECT * FROM {ip_suppress} WHERE ip = :ip", array(':ip' => $ip))->fetchAssoc();
+  return db_select('ip_suppress', 'ips')->fields('ips')->condition('ips.ip', $ip)->execute()->fetchAssoc();
 }
 
 
@@ -191,5 +197,3 @@ function ip_suppress_ip_delete_by_ip($ip) {
     ->condition('ip', $ip)
     ->execute();
 }
-
-// @todo: crud

@@ -1,0 +1,195 @@
+<?php
+/**
+ * Created by PhpStorm.
+ * User: mike
+ * Date: 2/24/15
+ * Time: 2:06 PM
+ */
+
+/**
+ * Restrict suppressed user FROM only listed pages.
+ */
+define('IP_SUPPRESS_BLACKLIST', 0);
+
+/**
+ * Restrict suppressed user TO only listed pages
+ */
+define('IP_SUPPRESS_WHITELIST', 1);
+//@todo: check files[] in info
+
+
+//@todo: variable get to override?
+
+/**
+ * Implements hook_permission().
+ */
+function ip_suppress_permission() {
+  return array(
+    'administer ip suppress' =>  array(
+      'title' => t('Administer IP Suppress'),
+      'description' => t('Perform administration tasks for IP Suppress.'),
+    ),
+    //@todo: add bypass access
+  );
+
+}
+
+/**
+ * Implements hook_menu().
+ */
+function ip_suppress_menu() {
+
+// @todo: hook_menu config(redirect, allowed paths), whitelist, blacklist
+  // IP address blocking.
+  $items['admin/config/people/ip-suppress'] = array(
+    'title' => 'IP Suppress',
+    'description' => 'Manage IP Suppress Configuration.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('ip_suppress_settings_form'),
+    'access arguments' => array('administer ip suppress'),
+    'file' => 'ip_suppress.admin.inc',
+    'weight' => 10,
+  );
+  // IP address blocking.
+  $items['admin/config/people/ip-suppress/settings'] = array(
+    'title' => 'Settings',
+    'description' => 'Manage IP Suppress Configuration.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('ip_suppress_settings_form'),
+    'access arguments' => array('administer ip suppress'),
+    'file' => 'ip_suppress.admin.inc',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+  );
+  // IP address blocking.
+  $items['admin/config/people/ip-suppress/list'] = array(
+    'title' => 'List',
+    'description' => 'Manage blocked IP addresses.',
+    'page callback' => 'ip_suppress_list',
+    'access arguments' => array('administer ip suppress'),
+    'file' => 'ip_suppress.admin.inc',
+    'type' => MENU_LOCAL_TASK,
+  );
+  $items['admin/config/people/ip-suppress/delete/%ip_suppress_ip'] = array(
+    'title' => 'Delete IP address',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('ip_suppress_blocking_delete', 5),
+    'access arguments' => array('administer ip suppress'),
+    'file' => 'ip_suppress.admin.inc',
+  );
+
+  return $items;
+
+}
+function ip_suppress_check() {
+  global $user;
+  $results = db_query("SELECT * FROM {ip_suppress} WHERE ip = :ip", array(':ip' => ip_address()))->fetchAssoc();
+  if(!$results || $user->uid == 1) {
+    return;
+  }
+  // Convert paths to lowercase. This allows comparison of the same path
+  // with different case. Ex: /Page, /page, /PAGE.
+  $visibility = variable_get('ip_suppress_visibility', IP_SUPPRESS_WHITELIST);
+  $pages = strtolower (variable_get('ip_suppress_pages'));
+  $redirect = strtolower (variable_get('ip_suppress_redirect'));
+  $path =  strtolower ($_GET['q']);
+
+  if(function_exists('drupal_get_path_alias')) {
+    $path_alias = strtolower (drupal_get_path_alias($_GET['q']));
+  } else {
+    $path_alias = $path;
+  }
+  // Check if module is configured, else skip processing.
+  if(!$redirect) {
+    return;
+  }
+
+  // @todo: This might not be needed
+//   Check if whitelist
+//  if($visibility) {
+//    // If whitelist, add redirect path to list.
+//    $pages .= $pages ? "\n" . $redirect : $redirect;
+//  } else {
+//    // If blacklist, remove redirect from list.
+//    if($pages) {
+//      $pages = preg_replace('/'.preg_quote($redirect).'$/m', '', $pages);
+//    }
+//  }
+  $page_match = drupal_match_path($path_alias, $pages);
+  if (!$page_match && $path_alias != $path) {
+    $page_match = drupal_match_path($path, $pages);
+  }
+
+  $page_match = !(!$visibility xor $page_match);
+  if($page_match && $redirect != $path_alias && $redirect != $path && $redirect != strtolower(request_path())) {
+    drupal_goto($redirect);
+  }
+}
+/**
+ * // Probably need to change this to bootstrap because of varnish
+ * Implements hook_boot().
+ */
+function ip_suppress_boot() {
+  global $user;
+  if ($user->uid != 0) { // ignore for Authentificated Users
+    return;
+  }
+  drupal_bootstrap(DRUPAL_BOOTSTRAP_FULL);
+  ip_suppress_check();
+}
+
+function ip_suppress_page_build() {
+  if(!user_access('bypass ip suppress check')) {
+    ip_suppress_check();
+  }
+}
+
+
+/**
+ *
+ */
+function ip_suppress_ip_insert($ip) {
+  if(!ip_suppress_ip_load_by_ip($ip)) {
+    db_insert('ip_suppress')
+      ->fields(array('ip' => $ip))
+      ->execute();
+  }
+}
+
+
+/**
+ * Retrieve a blocked IP address from the database.
+ *
+ * @param $iid integer
+ *   The ID of the blocked IP address to retrieve.
+ *
+ * @return
+ *   The blocked IP address from the database as an array.
+ */
+function ip_suppress_ip_load($iid) {
+  return db_query("SELECT * FROM {ip_suppress} WHERE iid = :iid", array(':iid' => $iid))->fetchAssoc();
+}
+
+function ip_suppress_ip_load_by_ip($ip) {
+  return db_query("SELECT * FROM {ip_suppress} WHERE ip = :ip", array(':ip' => $ip))->fetchAssoc();
+}
+
+
+/**
+ *
+ */
+function ip_suppress_ip_delete($iid) {
+  db_delete('ip_suppress')
+    ->condition('iid', $iid)
+    ->execute();
+}
+
+/**
+ *
+ */
+function ip_suppress_ip_delete_by_ip($ip) {
+  db_delete('ip_suppress')
+    ->condition('ip', $ip)
+    ->execute();
+}
+
+// @todo: crud

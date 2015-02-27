@@ -1,0 +1,39 @@
+<?php
+/**
+ * Created by PhpStorm.
+ * User: mike
+ * Date: 2/24/15
+ * Time: 3:39 PM
+ */
+
+/**
+ * Implements hook_schema().
+ *
+ *
+ */
+function ip_suppress_schema() {
+  $schema['ip_suppress'] = array(
+    'description' => 'Stores suppressed IP addresses.',
+    'fields' => array(
+      'iid' => array(
+        'description' => 'Primary Key: unique ID for IP addresses.',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'ip' => array(
+        'description' => 'IP address',
+        'type' => 'varchar',
+        'length' => 40,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+    ),
+    'indexes' => array(
+      'blocked_ip' => array('ip'),
+    ),
+    'primary key' => array('iid'),
+  );
+  return $schema;
+
+}

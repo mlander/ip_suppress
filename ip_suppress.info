@@ -1,0 +1,6 @@
+name = IP Suppress
+description = Redirect and restrict flagged IPs to specific pages.
+package = Access control
+core = 7.x
+
+files[] = ip_suppress.module

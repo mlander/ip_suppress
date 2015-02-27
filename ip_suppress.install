@@ -1,15 +1,13 @@
 <?php
 /**
  * Created by PhpStorm.
- * User: mike
+ * User: michaellander
  * Date: 2/24/15
  * Time: 3:39 PM
  */
 
 /**
  * Implements hook_schema().
- *
- *
  */
 function ip_suppress_schema() {
   $schema['ip_suppress'] = array(
@@ -36,4 +34,13 @@ function ip_suppress_schema() {
   );
   return $schema;
 
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function ip_suppress_uninstall() {
+  variable_del('ip_suppress_redirect');
+  variable_del('ip_suppress_visibility');
+  variable_del('ip_suppress_pages');
 }

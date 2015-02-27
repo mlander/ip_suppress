@@ -1,10 +1,14 @@
 <?php
 /**
  * Created by PhpStorm.
- * User: mike
+ * User: michaellander
  * Date: 2/24/15
  * Time: 2:06 PM
  */
+//@todo: check files[] in info
+//@todo: variable get to override?
+//@todo: comments
+//@todo: readmes
 
 /**
  * Restrict suppressed user FROM only listed pages.
@@ -15,10 +19,6 @@ define('IP_SUPPRESS_BLACKLIST', 0);
  * Restrict suppressed user TO only listed pages
  */
 define('IP_SUPPRESS_WHITELIST', 1);
-//@todo: check files[] in info
-
-
-//@todo: variable get to override?
 
 /**
  * Implements hook_permission().
@@ -63,7 +63,7 @@ function ip_suppress_menu() {
   // IP address blocking.
   $items['admin/config/people/ip-suppress/list'] = array(
     'title' => 'List',
-    'description' => 'Manage blocked IP addresses.',
+    'description' => 'Manage Suppressed IP addresses.',
     'page callback' => 'ip_suppress_list',
     'access arguments' => array('administer ip suppress'),
     'file' => 'ip_suppress.admin.inc',
@@ -103,7 +103,7 @@ function ip_suppress_check() {
     return;
   }
 
-  // @todo: This might not be needed
+  // @todo: This might not be needed, depends how we want to handle message
 //   Check if whitelist
 //  if($visibility) {
 //    // If whitelist, add redirect path to list.
@@ -157,13 +157,13 @@ function ip_suppress_ip_insert($ip) {
 
 
 /**
- * Retrieve a blocked IP address from the database.
+ * Retrieve a supressed IP address from the database.
  *
  * @param $iid integer
- *   The ID of the blocked IP address to retrieve.
+ *   The ID of the supressed IP address to retrieve.
  *
  * @return
- *   The blocked IP address from the database as an array.
+ *   The supressed IP address from the database as an array.
  */
 function ip_suppress_ip_load($iid) {
   return db_query("SELECT * FROM {ip_suppress} WHERE iid = :iid", array(':iid' => $iid))->fetchAssoc();

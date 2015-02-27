@@ -1,13 +1,17 @@
 <?php
 /**
  * Created by PhpStorm.
- * User: mike
+ * User: michaellander
  * Date: 2/24/15
  * Time: 3:24 PM
  */
 
 
-
+/**
+ * @param $form
+ * @param $form_state
+ * @return mixed
+ */
 function ip_suppress_settings_form($form, &$form_state) {
 
   $form['ip_suppress_redirect'] = array(
@@ -36,14 +40,12 @@ function ip_suppress_settings_form($form, &$form_state) {
     '#default_value' => variable_get('ip_suppress_pages', "user\nuser/*"),
     '#description' => $description,
   );
-  //@todo: Redirect path
-  //@todo: Allowed paths
-  //@todo: System message
+  //@todo: allow for custom message
   return system_settings_form($form);
 }
 
 /**
- * Menu callback. Display blocked IP addresses.
+ * Menu callback. Display suppressed IP addresses.
  *
  * @param $default_ip
  *   Optional IP address to be passed on to drupal_get_form() for
@@ -66,7 +68,7 @@ function ip_suppress_list($default_ip = '') {
     '#theme' => 'table',
     '#header' => $header,
     '#rows' => $rows,
-    '#empty' => t('No blocked IP addresses available.'),
+    '#empty' => t('No suppressed IP addresses available.'),
   );
 
   return $build;
@@ -125,7 +127,7 @@ function ip_suppress_suppress_form_submit($form, &$form_state) {
  * @see ip_suppress_suppress_delete_submit()
  */
 function ip_suppress_suppress_delete($form, &$form_state, $iid) {
-  $form['blocked_ip'] = array(
+  $form['suppressed_ip'] = array(
     '#type' => 'value',
     '#value' => $iid,
   );
@@ -136,9 +138,9 @@ function ip_suppress_suppress_delete($form, &$form_state, $iid) {
  * Process ip_suppress_suppress_delete form submissions.
  */
 function ip_suppress_suppress_delete_submit($form, &$form_state) {
-  $blocked_ip = $form_state['values']['blocked_ip'];
-  ip_suppress_ip_delete($blocked_ip['iid']);
-  watchdog('user', 'Deleted %ip', array('%ip' => $blocked_ip['ip']));
-  drupal_set_message(t('The IP address %ip was deleted.', array('%ip' => $blocked_ip['ip'])));
+  $suppressed_ip = $form_state['values']['suppressed_ip'];
+  ip_suppress_ip_delete($suppressed_ip['iid']);
+  watchdog('user', 'Deleted %ip', array('%ip' => $suppressed_ip['ip']));
+  drupal_set_message(t('The IP address %ip was deleted.', array('%ip' => $suppressed_ip['ip'])));
   $form_state['redirect'] = 'admin/config/people/ip-blocking';
 }
